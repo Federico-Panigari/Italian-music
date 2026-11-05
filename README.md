@@ -1,17 +1,16 @@
-# italian_music_project
+# ITALIA MUSIC
 
-A new Flutter project.
+Applicazione Flutter dedicata alla scoperta della musica italiana.
 
-## Getting Started
+## Descrizione
 
-This project is a starting point for a Flutter application.
+ITALIA MUSIC permette di esplorare artisti italiani, conoscere le loro biografie, scoprire album e brani e salvare i propri artisti preferiti.
 
-A few resources to get you started if this is your first Flutter project:
+## Tecnologie
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter
+- Dart
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Stato del progetto
+
+Progetto in fase di sviluppo.
