@@ -229,11 +229,7 @@ class LoginScreenState extends State<LoginScreen> {
 
                                     messaggioErrore = null;
 
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Accesso effettuato!'),
-                                      ),
-                                    );
+                                    Navigator.pushReplacementNamed(context, '/home');
                                   }
                                 });
                               },
