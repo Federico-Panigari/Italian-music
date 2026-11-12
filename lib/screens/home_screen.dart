@@ -1,5 +1,7 @@
-
 import 'package:flutter/material.dart';
+import "artist_detail_screen.dart";
+import '../models/artist.dart';
+import '../services/artists_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,26 +16,55 @@ class HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
   String searchQuery = '';
 
-  // List of artists
-  final List<Map<String, String>> artists = [
-    {'name': 'Måneskin', 'genre': 'Rock · Alternative'},
-    {'name': 'Laura Pausini', 'genre': 'Pop'},
-    {'name': 'Ultimo', 'genre': 'Pop · Cantautorato'},
-    {'name': 'Mahmood', 'genre': 'Pop · R&B'},
-    {'name': 'Elisa', 'genre': 'Pop · Rock'},
-    {'name': 'Tiziano Ferro', 'genre': 'Pop'},
-  ];
+  final ArtistService artistService = ArtistService();
+
+  List<Artist> artists = [];
+  List<Artist> displayedArtists = [];
+
+  bool isLoading = true;
+  bool isSearching = false;
+  String? errorMessage;
 
   // List of favorite artists
   final Set<String> favoriteArtists = {};
 
+  @override
+void initState() {
+  super.initState();
+  loadInitialArtists();
+}
+
+// Load the initial list of Italian artists
+Future<void> loadInitialArtists() async {
+    try {
+      final results = await artistService.getItalianArtists();
+
+      if (!mounted) return;
+
+      setState(() {
+        artists = results;
+        displayedArtists = results;
+        isLoading = false;
+        errorMessage = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Errore durante il caricamento degli artisti';
+      });
+    }
+  }
+
   // Toggle an artist as favorite
-  void toggleFavorite(String artistName) {
+  // Toggle an artist as favorite
+  void toggleFavorite(String artistId) {
     setState(() {
-      if (favoriteArtists.contains(artistName)) {
-        favoriteArtists.remove(artistName);
+      if (favoriteArtists.contains(artistId)) {
+        favoriteArtists.remove(artistId);
       } else {
-        favoriteArtists.add(artistName);
+        favoriteArtists.add(artistId);
       }
     });
   }
@@ -60,11 +91,7 @@ class HomeScreenState extends State<HomeScreen> {
     final c = Theme.of(context).colorScheme;
 
     // Filter artists based on the search query
-    final filteredArtists = artists.where((artist) {
-      return artist['name']!
-          .toLowerCase()
-          .contains(searchQuery.toLowerCase());
-    }).toList();
+    final filteredArtists = displayedArtists;
 
     // Colors for artist initials
     final List<Color> avatarColors = [
@@ -225,90 +252,130 @@ class HomeScreenState extends State<HomeScreen> {
 
               // Artists list
               Expanded(
-                child: filteredArtists.isEmpty? 
-                Center(
-                  child: Text(
-                    'Nessun artista trovato',
-                     style: TextStyle(
-                       fontSize: 15,
-                       color: c.onSurfaceVariant,
-                     ),
+                child: isLoading? Center(
+                    child: CircularProgressIndicator(
+                      color: c.primary,
+                    ),
+                  )
+
+                : errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              errorMessage!,
+                              style: TextStyle(color: c.error),
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  isLoading = true;
+                                });
+                                loadInitialArtists();
+                              },
+                              child: const Text('Riprova'),
+                            ),
+                          ],
                         ),
                       )
-                    : ListView.builder(
-                        padding: EdgeInsets.zero,
-                        itemCount: filteredArtists.length,
-                        itemBuilder: (context, index) {
-                          final artist = filteredArtists[index];
-                          final artistName = artist['name']!;
-                          final isFavorite =
-                              favoriteArtists.contains(artistName);
-
-                          return Card(
-                            color: c.surface,
-                            elevation: 0,
-                            margin: const EdgeInsets.only(bottom: 6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
+                    : filteredArtists.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Nessun artista trovato',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: c.onSurfaceVariant,
                               ),
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: avatarColors[index % avatarColors.length],
-                                  borderRadius: BorderRadius.circular(8),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: filteredArtists.length,
+                            itemBuilder: (context, index) {
+                              final artist = filteredArtists[index];
+                              final artistName = artist.name;
+                              final isFavorite = favoriteArtists.contains(artist.id);
+
+                              final artistGenre = artist.tags.isNotEmpty? artist.tags.take(2).join(' · ') : artist.type ?? 'Artista italiano';
+
+                              return Card(
+                                color: c.surface,
+                                elevation: 0,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    artistName[0].toUpperCase(),
+                                child: ListTile(
+                                  dense: true,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ArtistDetailScreen(
+                                          artistName: artistName,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  leading: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: avatarColors[
+                                          index % avatarColors.length],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        artistName[0].toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.bold,
+                                          color: c.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    artistName,
                                     style: TextStyle(
-                                      fontSize: 19,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: c.primary,
+                                      color: c.onSurface,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    artistGenre,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: c.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () {
+                                      toggleFavorite(artist.id);
+                                    },
+                                    icon: Icon(
+                                      isFavorite
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: isFavorite
+                                          ? c.primary
+                                          : c.onSurfaceVariant,
+                                      size: 19,
                                     ),
                                   ),
                                 ),
-                              ),
-                              title: Text(
-                                artistName,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: c.onSurface,
-                                ),
-                              ),
-                              subtitle: Text(
-                                artist['genre']!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: c.onSurfaceVariant,
-                                ),
-                              ),
-                              trailing: IconButton(
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () {
-                                  toggleFavorite(artistName);
-                                },
-                                icon: Icon(
-                                  isFavorite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: isFavorite
-                                      ? c.primary
-                                      : c.onSurfaceVariant,
-                                  size: 19,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),

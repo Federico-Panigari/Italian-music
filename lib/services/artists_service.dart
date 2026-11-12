@@ -1,45 +1,93 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/artist.dart';
+import '../models/track.dart';
 
 class ArtistService {
   
-  // Search Italian artists on MusicBrainz
+    // Search Italian artists on MusicBrainz
   Future<List<Artist>> searchArtists(String artistName) async {
-  final uri = Uri.https(
-    'musicbrainz.org',
-    '/ws/2/artist/',
-    {
-      'query': 'artist:"$artistName" AND country:IT',
-      'fmt': 'json',
-      'limit': '10',
-    },
-  );
-
-  try {
-    final response = await http.get(
-      uri,
-      headers: {
-        'User-Agent': 'ITALIA-MUSIC/1.0 (ITS Flutter project)',
+    final uri = Uri.https(
+      'musicbrainz.org',
+      '/ws/2/artist/',
+      {
+        'query': 'artist:"$artistName" AND country:IT',
+        'fmt': 'json',
+        'limit': '20',
       },
-    ).timeout(const Duration(seconds: 10));
+    );
 
-    if (response.statusCode == 200) {
-      final data =
-          jsonDecode(response.body) as Map<String, dynamic>;
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'ITALIA-MUSIC/1.0 (ITS Flutter project)',
+        },
+      ).timeout(const Duration(seconds: 10));
 
-      final artistsJson = data['artists'] as List<dynamic>? ?? [];
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(response.body) as Map<String, dynamic>;
 
-      return artistsJson.map((artist) {
-        return Artist.fromJson(artist as Map<String, dynamic>);
-      }).toList();
-    } else {
-      throw Exception('Server error: ${response.statusCode}');
+        final artistsJson =
+            data['artists'] as List<dynamic>? ?? [];
+
+        return artistsJson.map((artist) {
+          return Artist.fromJson(
+            artist as Map<String, dynamic>,
+          );
+        }).toList();
+      } else {
+        throw Exception(
+          'Server error: ${response.statusCode}',
+        );
+      }
+    } catch (error) {
+      throw Exception('Artist search failed: $error');
     }
-  } catch (error) {
-    throw Exception('Artist search failed: $error');
   }
-}
+
+   // Get the first 20 Italian artists from MusicBrainz
+  Future<List<Artist>> getItalianArtists() async {
+    final uri = Uri.https(
+      'musicbrainz.org',
+      '/ws/2/artist/',
+      {
+        'query': 'country:IT',
+        'fmt': 'json',
+        'limit': '20',
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'ITALIA-MUSIC/1.0 (ITS Flutter project)',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(response.body) as Map<String, dynamic>;
+
+        final artistsJson =
+            data['artists'] as List<dynamic>? ?? [];
+
+        return artistsJson.map((artist) {
+          return Artist.fromJson(
+            artist as Map<String, dynamic>,
+          );
+        }).toList();
+      } else {
+        throw Exception(
+          'Server error: ${response.statusCode}',
+        );
+      }
+    } catch (error) {
+      throw Exception('Italian artists loading failed: $error');
+    }
+  }
 
 // Get the Wikidata ID of an artist
 Future<String?> getWikidataId(String artistId) async {
@@ -242,6 +290,93 @@ Future<String?> getWikidataId(String artistId) async {
     final artistsWithImages =await loadArtistImages(artists);
 
     return artistsWithImages;
+  }
+
+  // Get the tracks of an artist
+Future<List<Track>> getArtistTracks(String artistId) async {
+  final uri = Uri.https(
+    'musicbrainz.org',
+    '/ws/2/recording/',
+    {
+      'artist': artistId,
+      'fmt': 'json',
+      'limit': '20',
+      'inc': 'artist-credits',
+    },
+  );
+
+  try {
+    final response = await http.get(
+      uri,
+      headers: {
+        'User-Agent': 'ITALIA-MUSIC/1.0 (ITS Flutter project)',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data =jsonDecode(response.body) as Map<String, dynamic>;
+      final recordings =data['recordings'] as List<dynamic>? ?? [];
+
+      return recordings.take(5).map((recording) {
+            return Track.fromJson(
+              recording as Map<String, dynamic>,
+            );
+          })
+          .toList();
+    } else {
+      throw Exception('Server error: ${response.statusCode}');
+    }
+  } catch (error) {
+    throw Exception('Track search failed: $error');
+  }
+}
+
+
+// Get the artist description from Wikidata
+  Future<String?> getArtistDescription(String artistId) async {
+    try {
+      final wikidataId = await getWikidataId(artistId);
+
+      if (wikidataId == null) {
+        return null;
+      }
+
+      final uri = Uri.https(
+        'www.wikidata.org',
+        '/w/api.php',
+        {
+          'action': 'wbgetentities',
+          'ids': wikidataId,
+          'props': 'descriptions',
+          'languages': 'it|en',
+          'format': 'json',
+        },
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'ITALIA-MUSIC/1.0 (ITS Flutter project)',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data =jsonDecode(response.body) as Map<String, dynamic>;
+        final entities =data['entities'] as Map<String, dynamic>;
+        final entity = entities[wikidataId] as Map<String, dynamic>;
+        final descriptions =entity['descriptions'] as Map<String, dynamic>? ?? {};
+        final italianDescription =descriptions['it']?['value'] as String?;
+        final englishDescription = descriptions['en']?['value'] as String?;
+
+        return italianDescription ?? englishDescription;
+      } else {
+        throw Exception(
+          'Wikidata error: ${response.statusCode}',
+        );
+      }
+    } catch (error) {
+      throw Exception('Artist description search failed: $error');
+    }
   }
 
 
