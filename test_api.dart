@@ -1,5 +1,4 @@
 
-import './lib/models/artist.dart';
 import './lib/services/artists_service.dart';
 
 void main() async {
@@ -7,16 +6,14 @@ void main() async {
 
   try {
     final artists =
-        await artistService.searchArtists('Måneskin');
+        await artistService.searchArtistsWithImages('Lucio Dalla');
 
-    if (artists.isNotEmpty) {
-      final artist = artists.first;
-
-      final artistWithImage =
-          await artistService.loadArtistImage(artist);
-
-      print('Artist: ${artistWithImage.name}');
-      print('Image URL: ${artistWithImage.imageUrl}');
+    for (var artist in artists) {
+      print('Artist: ${artist.name}');
+      print('Country: ${artist.country}');
+      print('Genres: ${artist.tags}');
+      print('Image URL: ${artist.imageUrl}');
+      print('----------------------');
     }
   } catch (error) {
     print(error);

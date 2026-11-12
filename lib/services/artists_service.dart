@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import '../models/artist.dart';
 
 class ArtistService {
-
   
   // Search Italian artists on MusicBrainz
   Future<List<Artist>> searchArtists(String artistName) async {
@@ -70,7 +69,6 @@ Future<String?> getWikidataId(String artistId) async {
       for (var relation in relations) {
         if (relation['type'] == 'wikidata') {
           final resource = relation['url']['resource'] as String;
-
           final wikidataUri = Uri.parse(resource);
 
           return wikidataUri.pathSegments.last;
@@ -116,14 +114,11 @@ Future<String?> getWikidataId(String artistId) async {
         );
       }
 
-      final wikidataData =
-          jsonDecode(wikidataResponse.body) as Map<String, dynamic>;
+      final wikidataData =jsonDecode(wikidataResponse.body) as Map<String, dynamic>;
 
-      final entities =
-          wikidataData['entities'] as Map<String, dynamic>;
+      final entities =wikidataData['entities'] as Map<String, dynamic>;
 
-      final entity =
-          entities[wikidataId] as Map<String, dynamic>;
+      final entity =entities[wikidataId] as Map<String, dynamic>;
 
       final claims = entity['claims'] as Map<String, dynamic>;
 
@@ -169,27 +164,21 @@ Future<String?> getWikidataId(String artistId) async {
       ).timeout(const Duration(seconds: 10));
 
       if (commonsResponse.statusCode == 200) {
-        final commonsData =
-            jsonDecode(commonsResponse.body) as Map<String, dynamic>;
+        final commonsData =jsonDecode(commonsResponse.body) as Map<String, dynamic>;
 
-        final query =
-            commonsData['query'] as Map<String, dynamic>;
+        final query =commonsData['query'] as Map<String, dynamic>;
 
-        final pages =
-            query['pages'] as Map<String, dynamic>;
+        final pages =query['pages'] as Map<String, dynamic>;
 
-        final page =
-            pages.values.first as Map<String, dynamic>;
+        final page =pages.values.first as Map<String, dynamic>;
 
-        final imageInfoList =
-            page['imageinfo'] as List<dynamic>? ?? [];
+        final imageInfoList =page['imageinfo'] as List<dynamic>? ?? [];
 
         if (imageInfoList.isEmpty) {
           return null;
         }
 
-        final imageInfo =
-            imageInfoList.first as Map<String, dynamic>;
+        final imageInfo =imageInfoList.first as Map<String, dynamic>;
 
         return imageInfo['thumburl'] as String? ??
             imageInfo['url'] as String?;
@@ -224,6 +213,38 @@ Future<String?> getWikidataId(String artistId) async {
       return artist;
     }
   }
+
+
+  // Load images for a list of artists
+  Future<List<Artist>> loadArtistImages(List<Artist> artists) async {
+    final List<Artist> artistsWithImages = [];
+
+    for (var i = 0; i < artists.length; i++) {
+
+      // Respect the MusicBrainz request limit
+      await Future.delayed(const Duration(seconds: 1));
+
+      final artistWithImage = await loadArtistImage(artists[i]);
+
+      artistsWithImages.add(artistWithImage);
+    }
+
+    return artistsWithImages;
+  }
+
+
+
+  // Search artists and load their images
+  Future<List<Artist>> searchArtistsWithImages(
+    String artistName,
+  ) async {
+    final artists = await searchArtists(artistName);
+    final artistsWithImages =await loadArtistImages(artists);
+
+    return artistsWithImages;
+  }
+
+
 
 
 }
