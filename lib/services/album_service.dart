@@ -1,20 +1,22 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/album.dart';
+import 'package:flutter/material.dart';
 
 class AlbumService {
   // Get albums for an artist
   Future<List<Album>> getArtistAlbums(String artistId) async {
-    final uri = Uri.https(
-      'musicbrainz.org',
-      '/ws/2/release-group/',
-      {
-        'query': 'arid:$artistId AND primarytype:album',
-        'fmt': 'json',
-        'limit': '10',
-      },
-    );
+final uri = Uri.https(
+    'musicbrainz.org',
+    '/ws/2/release-group/',
+    {
+      'query': 'arid:$artistId AND primarytype:album',
+      'fmt': 'json',
+      'limit': '10',
+    },
+  );
 
+  for (int attempt = 1; attempt <= 3; attempt++) {
     try {
       final response = await http.get(
         uri,
@@ -24,23 +26,38 @@ class AlbumService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data =jsonDecode(response.body) as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-        final albumsJson = data['release-groups'] as List<dynamic>? ?? [];
+        final albumsJson =
+            data['release-groups'] as List<dynamic>? ?? [];
 
         return albumsJson.map((album) {
           return Album.fromJson(
             album as Map<String, dynamic>,
           );
         }).toList();
-      } else {
-        throw Exception(
-          'Server error: ${response.statusCode}',
-        );
       }
+
+      if (response.statusCode != 503 &&
+          response.statusCode != 429) {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+
+      debugPrint(
+        'Album request attempt $attempt failed: ${response.statusCode}',
+      );
     } catch (error) {
-      throw Exception('Album search failed: $error');
+      if (attempt == 3) {
+        throw Exception('Album search failed: $error');
+      }
+
+      debugPrint('Album request attempt $attempt failed: $error');
     }
+
+    await Future.delayed(Duration(seconds: attempt * 2));
+  }
+
+  throw Exception('Album search failed after 3 attempts');
   }
 
 
@@ -79,24 +96,28 @@ class AlbumService {
 
 
   // Load albums with their cover images
-  Future<List<Album>> getArtistAlbumsWithCovers(
-    String artistId,
-  ) async {
+  Future<List<Album>> getArtistAlbumsWithCovers(String artistId,) async {
     final albums = await getArtistAlbums(artistId);
 
-    final List<Album> albumsWithCovers = [];
+  final List<Album> albumsWithCovers = [];
 
-    for (var album in albums) {
-      final coverUrl = await getAlbumCoverUrl(album.id);
+  for (var album in albums) {
+    String? coverUrl;
 
-      albumsWithCovers.add(
-        album.copyWith(coverUrl: coverUrl),
-      );
-
-      await Future.delayed(const Duration(seconds: 1));
+    try {
+      coverUrl = await getAlbumCoverUrl(album.id);
+    } catch (error) {
+      debugPrint('Cover unavailable for ${album.title}: $error');
     }
 
-    return albumsWithCovers;
+    albumsWithCovers.add(
+      album.copyWith(coverUrl: coverUrl),
+    );
+
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
+  return albumsWithCovers;
   }
 
 

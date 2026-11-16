@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import "artist_detail_screen.dart";
 import '../models/artist.dart';
 import '../services/artists_service.dart';
+import 'favorites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,7 +58,48 @@ Future<void> loadInitialArtists() async {
     }
   }
 
-  // Toggle an artist as favorite
+
+  // Search artists on MusicBrainz
+  Future<void> searchArtists(String query) async {
+    final value = query.trim();
+
+    // Restore the initial artist list if the search is empty
+    if (value.isEmpty) {
+      setState(() {
+        displayedArtists = artists;
+        searchQuery = '';
+      });
+      return;
+    }
+
+    setState(() {
+      isSearching = true;
+      searchQuery = value;
+    });
+
+    try {
+      final results = await artistService.searchArtists(value);
+
+      if (!mounted) return;
+
+      setState(() {
+        displayedArtists = results;
+        isSearching = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        isSearching = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Errore durante la ricerca degli artisti'),
+        ),
+      );
+    }
+  }
   // Toggle an artist as favorite
   void toggleFavorite(String artistId) {
     setState(() {
@@ -170,10 +212,16 @@ Future<void> loadInitialArtists() async {
 
               // Search bar
               TextField(
+                textInputAction: TextInputAction.search,
+
                 onChanged: (value) {
                   setState(() {
                     searchQuery = value;
                   });
+                },
+
+                onSubmitted: (value) {
+                  searchArtists(value);
                 },
 
                 decoration: InputDecoration(
@@ -252,7 +300,7 @@ Future<void> loadInitialArtists() async {
 
               // Artists list
               Expanded(
-                child: isLoading? Center(
+                child: (isLoading || isSearching) ? Center(
                     child: CircularProgressIndicator(
                       color: c.primary,
                     ),
@@ -381,7 +429,13 @@ Future<void> loadInitialArtists() async {
               ),
             ),
 
-        buildPlaceholderScreen('Preferiti'),
+        FavoritesScreen(
+          artists: artists
+              .where((artist) => favoriteArtists.contains(artist.id))
+              .toList(),
+          onToggleFavorite: toggleFavorite,
+        ),
+        
         buildPlaceholderScreen('Profilo'),
         ],
       ),
