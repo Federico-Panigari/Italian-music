@@ -7,7 +7,7 @@ class AccountService {
     'utente4@email.com': 'musica123',
   };
 
-  // Verifica le credenziali
+  // Verify credentials
   bool verificaAccesso(String email, String password) {
 
     if (account.containsKey(email) && account[email] == password) {
@@ -15,7 +15,11 @@ class AccountService {
     } else {
       return false;
     }
+  }
 
+  // Delete an account
+  bool deleteAccount(String email) {
+    return account.remove(email) != null;
   }
 
 }

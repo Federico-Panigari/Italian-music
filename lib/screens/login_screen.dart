@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../services/account_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final AccountService accountService;
+
+  const LoginScreen({
+    super.key,
+    required this.accountService,
+  });
 
   @override
   State<LoginScreen> createState() {
@@ -13,7 +18,6 @@ class LoginScreen extends StatefulWidget {
 class LoginScreenState extends State<LoginScreen> {
 
   String? messaggioErrore;
-  final AccountService accountService = AccountService();
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -219,7 +223,7 @@ class LoginScreenState extends State<LoginScreen> {
 
                                     messaggioErrore = 'Inserisci email e password';
 
-                                  } else if (!accountService.verificaAccesso(
+                                  } else if (!widget.accountService.verificaAccesso(
                                       emailController.text,
                                       _passwordController.text)) {
 
@@ -229,7 +233,8 @@ class LoginScreenState extends State<LoginScreen> {
 
                                     messaggioErrore = null;
 
-                                    Navigator.pushReplacementNamed(context, '/home');
+                                    Navigator.pushReplacementNamed(context, '/home', arguments: emailController.text,
+                                    );
                                   }
                                 });
                               },

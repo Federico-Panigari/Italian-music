@@ -3,9 +3,22 @@ import "artist_detail_screen.dart";
 import '../models/artist.dart';
 import '../services/artists_service.dart';
 import 'favorites_screen.dart';
+import 'profile_screen.dart';
+import '../services/account_service.dart';
+import '../services/favorite_service.dart';
+
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final ValueChanged<ThemeMode> onThemeChanged;
+  final String currentEmail;
+  final AccountService accountService;
+
+  const HomeScreen({
+    super.key,
+    required this.onThemeChanged,
+    required this.currentEmail,
+    required this.accountService,
+  });
 
   @override
   State<HomeScreen> createState() {
@@ -18,11 +31,13 @@ class HomeScreenState extends State<HomeScreen> {
   String searchQuery = '';
 
   final ArtistService artistService = ArtistService();
+  final FavoritesService favoritesService = FavoritesService();
 
   List<Artist> artists = [];
   List<Artist> displayedArtists = [];
 
   bool isLoading = true;
+  bool isFavoritesLoading = true;
   bool isSearching = false;
   String? errorMessage;
 
@@ -30,10 +45,25 @@ class HomeScreenState extends State<HomeScreen> {
   final Set<String> favoriteArtists = {};
 
   @override
-void initState() {
-  super.initState();
-  loadInitialArtists();
-}
+  void initState() {
+    super.initState();
+    loadInitialArtists();
+    loadFavorites();
+  }
+
+  // Load saved favorites for the current account
+  Future<void> loadFavorites() async {
+     final savedFavorites = await favoritesService.loadFavorites(
+      widget.currentEmail,
+     );
+
+    if (!mounted) return;
+
+    setState(() {
+      favoriteArtists.addAll(savedFavorites);
+      isFavoritesLoading = false;
+    });
+  }
 
 // Load the initial list of Italian artists
 Future<void> loadInitialArtists() async {
@@ -67,6 +97,7 @@ Future<void> loadInitialArtists() async {
     if (value.isEmpty) {
       setState(() {
         displayedArtists = artists;
+        isSearching = false;
         searchQuery = '';
       });
       return;
@@ -83,6 +114,13 @@ Future<void> loadInitialArtists() async {
       if (!mounted) return;
 
       setState(() {
+        // Add searched artists to the main artist collection
+        for (final artist in results) {
+          if (!artists.any((item) => item.id == artist.id)) {
+            artists.add(artist);
+          }
+        }
+
         displayedArtists = results;
         isSearching = false;
       });
@@ -101,7 +139,7 @@ Future<void> loadInitialArtists() async {
     }
   }
   // Toggle an artist as favorite
-  void toggleFavorite(String artistId) {
+  Future<void> toggleFavorite(String artistId) async {
     setState(() {
       if (favoriteArtists.contains(artistId)) {
         favoriteArtists.remove(artistId);
@@ -109,6 +147,11 @@ Future<void> loadInitialArtists() async {
         favoriteArtists.add(artistId);
       }
     });
+
+    await favoritesService.saveFavorites(
+      widget.currentEmail,
+      favoriteArtists.toList(),
+    );
   }
 
 
@@ -429,14 +472,19 @@ Future<void> loadInitialArtists() async {
               ),
             ),
 
-        FavoritesScreen(
-          artists: artists
-              .where((artist) => favoriteArtists.contains(artist.id))
-              .toList(),
-          onToggleFavorite: toggleFavorite,
+        isFavoritesLoading ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : FavoritesScreen(
+              artists: artists.where((artist) => favoriteArtists.contains(artist.id)).toList(),
+              onToggleFavorite: toggleFavorite,
+            ),
+
+        ProfileScreen(
+          onThemeChanged: widget.onThemeChanged,
+          currentEmail: widget.currentEmail,
+          accountService: widget.accountService,
         ),
-        
-        buildPlaceholderScreen('Profilo'),
         ],
       ),
 
