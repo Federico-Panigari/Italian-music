@@ -31,6 +31,8 @@ class ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
   bool isDetailsLoading = true;
   String? detailsErrorMessage;
+  bool isAlbumsLoading = true;
+  bool isTracksLoading = true;
 
 
   @override
@@ -101,9 +103,14 @@ class ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
           setState(() {
             albums = artistAlbums;
+            isAlbumsLoading = false;
           });
         } catch (error) {
           debugPrint('Artist albums unavailable: $error');
+          if (!mounted) return;
+          setState(() {
+            isAlbumsLoading = false;
+          });
         }
 
         // Load the first five tracks
@@ -116,9 +123,15 @@ class ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
           setState(() {
             tracks = artistTracks;
+            isTracksLoading = false;
           });
         } catch (error) {
           debugPrint('Artist tracks unavailable: $error');
+          if (!mounted) return;
+
+          setState(() {
+            isTracksLoading = false;
+          });
         }
       } catch (error, stackTrace) {
         debugPrint('Artist details error: $error');
@@ -231,11 +244,15 @@ class ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
                           const SizedBox(height: 12),
 
-                          if (albums.isEmpty)
-                            Text(
-                              'Nessun album disponibile',
-                              style: TextStyle(color: c.onSurfaceVariant),
+                          if (isAlbumsLoading)
+                            const SizedBox(
+                              height: 220,
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
                             )
+                          else if (albums.isEmpty)
+                            const Text('Nessun album disponibile')
                           else
                             SizedBox(
                               height: 220,
@@ -312,11 +329,15 @@ class ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
                             const SizedBox(height: 12),
 
-                            if (tracks.isEmpty)
-                              Text(
-                                'Nessun brano disponibile',
-                                style: TextStyle(color: c.onSurfaceVariant),
+                            if (isTracksLoading)
+                              const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
                               )
+                            else if (tracks.isEmpty)
+                              const Text('Nessun brano disponibile')
                             else
                               Column(
                                 children: tracks.take(5).map((track) {
